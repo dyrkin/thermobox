@@ -8,11 +8,11 @@
 #define INC_BTN_PIN 53
 #define DHT_PIN 39
 #define SWITCH_PIN A0
-#define DHTTYPE DHT11
+#define DHT_TYPE DHT11
 
 Bounce decBtn = Bounce();
 Bounce incBtn = Bounce();
-DHT dht(DHT_PIN, DHTTYPE);
+DHT dht(DHT_PIN, DHT_TYPE);
 
 LiquidCrystal lcd(12, 11, 45, 44, 43, 42);
 
