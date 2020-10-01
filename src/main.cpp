@@ -1,68 +1,155 @@
-#include <DHT.h>
-#include <DHT_U.h>
-#include <LiquidCrystal.h>
-#include <Bounce2.h>
+#include <Arduino.h>
+#include <ESP8266WiFi.h>
+#include <Hash.h>
+#include <ESPAsyncTCP.h>
+#include <ESPAsyncWebServer.h>
+#include <LittleFS.h>
+#include <Wire.h>
+#include "Adafruit_MCP9808.h"
+#include "Adafruit_SHT31.h"
+#include <SPI.h>
+#include <InfluxDbClient.h>
+#include "movingAvg.h"
 
+//influx
+const char *influxdbUrl = "http://192.168.1.26:8086";
+const char *influxdbDatabaseName = "iot";
 
-#define DEC_BTN_PIN 52
-#define INC_BTN_PIN 53
-#define DHT_PIN 39
-#define SWITCH_PIN A0
-#define DHT_TYPE DHT11
+//wifi
+const char *ssid = "ssid";
+const char *password = "pwd";
 
-Bounce decBtn = Bounce();
-Bounce incBtn = Bounce();
-DHT dht(DHT_PIN, DHT_TYPE);
+//switches
+const int switchFan = 14;
+const int switchHeater = 12;
 
-LiquidCrystal lcd(12, 11, 45, 44, 43, 42);
+AsyncWebServer server(80);
+InfluxDBClient client(influxdbUrl, influxdbDatabaseName);
 
-int keepTemp = 20;
-float sensorTemp;
+Adafruit_MCP9808 tempSensorMcp9808 = Adafruit_MCP9808();
+Adafruit_SHT31 tempSensorSht31 = Adafruit_SHT31();
+movingAvg twoSensorAvgTemp(20);
 
-void setup() {
-  decBtn.attach(DEC_BTN_PIN, INPUT_PULLUP);
-  decBtn.interval(25);
-  incBtn.attach(INC_BTN_PIN, INPUT_PULLUP);
-  incBtn.interval(25);
-  lcd.begin(16, 2);
-  lcd.setCursor(2, 0);
-  lcd.print(keepTemp);
-  dht.begin();
-  Serial.begin(9600);
-  pinMode(SWITCH_PIN, OUTPUT);
+float mcpTemp = 0;
+float shtTemp = 0;
+float humidity = 0;
+String ip = "";
+float threshold = 50;
+float thresholdDelta = 0.5;
+bool heating = false;
+const int fanStopDelay = 60; //loop iterations
+int fanStopIterationsCount = 0;
+
+void setup()
+{
+  configTzTime("Europe/Warsaw", "pool.ntp.org", "time.nis.gov");
+
+  Serial.begin(115200);
+  LittleFS.begin();
+
+  tempSensorMcp9808.begin(0x18);
+  tempSensorMcp9808.setResolution(3);
+  tempSensorMcp9808.wake();
+
+  tempSensorSht31.begin(0x44);
+
+  // Connect to Wi-Fi
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED)
+  {
+    delay(1000);
+    Serial.println("Connecting to WiFi..");
+  }
+  ip = WiFi.localIP().toString();
+
+  Serial.println(ip);
+
+  // Route for root / web page
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->send(LittleFS, "/index.html");
+  });
+
+  DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
+  server.begin();
+  twoSensorAvgTemp.begin();
+
+  pinMode(switchFan, OUTPUT);
+  pinMode(switchHeater, OUTPUT);
 }
 
-void loop() {
-  decBtn.update();
-  incBtn.update();
-  bool keepTempChanged = false;
-  bool sensorTempChanged = false;
-
-  if (incBtn.rose()) {
-    keepTemp++;
-    keepTempChanged = true;
-  } else if (decBtn.rose()) {
-    keepTemp--;
-    keepTempChanged = true;
+void readSensorData()
+{
+  float t = tempSensorMcp9808.readTempC();
+  if (!isnan(t))
+  {
+    mcpTemp = t;
   }
 
-  if (keepTempChanged) {
-    Serial.println(keepTemp);
-    lcd.setCursor(2, 0);
-    lcd.print(keepTemp);
+  t = tempSensorSht31.readTemperature();
+  if (!isnan(t))
+  {
+    shtTemp = t;
+  }
+  float h = tempSensorSht31.readHumidity();
+  if (!isnan(h))
+  {
+    humidity = h;
   }
 
-  float currentTemp = dht.readTemperature();
-  sensorTempChanged = currentTemp != sensorTemp;
-  if (!isnan(currentTemp) && sensorTempChanged) {
-    sensorTemp = currentTemp;
-    lcd.setCursor(2, 1);
-    lcd.print(currentTemp);
-  }
+  twoSensorAvgTemp.reading(mcpTemp);
+  twoSensorAvgTemp.reading(shtTemp);
 
-  if (sensorTemp < keepTemp) {
-    digitalWrite(SWITCH_PIN, LOW);
-  } else {
-    digitalWrite(SWITCH_PIN, HIGH);
+  Serial.print("mcp: ");
+  Serial.println(mcpTemp);
+  Serial.print("sht: ");
+  Serial.println(shtTemp);
+  Serial.print("avg: ");
+  Serial.println(twoSensorAvgTemp.getAvg());
+}
+
+void sendMeasurementsToInflux()
+{
+  Point pointDevice("thermobox");
+  pointDevice.addTag("kind", "sensor");
+  pointDevice.addTag("ip", ip);
+  pointDevice.addField("mcp_temp", mcpTemp);
+  pointDevice.addField("sht_temp", shtTemp);
+  pointDevice.addField("two_sensor_avg_temp", twoSensorAvgTemp.getAvg());
+  pointDevice.addField("humidity", humidity);
+  pointDevice.addField("heating", heating);
+
+  client.writePoint(pointDevice);
+}
+
+void onOffHeater()
+{
+  if (twoSensorAvgTemp.getAvg() < threshold - thresholdDelta)
+  {
+    heating = true;
+    fanStopIterationsCount = 0;
+    digitalWrite(switchFan, LOW);
+    digitalWrite(switchHeater, LOW);
   }
+  else if (twoSensorAvgTemp.getAvg() >= threshold)
+  {
+    heating = false;
+    if (fanStopIterationsCount >= fanStopDelay)
+    {
+      digitalWrite(switchFan, HIGH);
+    }
+    digitalWrite(switchHeater, HIGH);
+    fanStopIterationsCount++;
+  }
+  else if (!heating)
+  {
+    fanStopIterationsCount++;
+  }
+}
+
+void loop()
+{
+  readSensorData();
+  sendMeasurementsToInflux();
+  onOffHeater();
+  delay(1000);
 }
