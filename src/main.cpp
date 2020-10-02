@@ -1,34 +1,30 @@
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
 #include <Hash.h>
-#include <ESPAsyncTCP.h>
-#include <ESPAsyncWebServer.h>
-#include <LittleFS.h>
 #include <Wire.h>
 #include "Adafruit_MCP9808.h"
 #include "Adafruit_SHT31.h"
 #include <SPI.h>
 #include <InfluxDbClient.h>
 #include "movingAvg.h"
+#include "ui.h"
+#include "wifi_secrets.h"
 
 //influx
 const char *influxdbUrl = "http://192.168.1.26:8086";
 const char *influxdbDatabaseName = "iot";
 
-//wifi
-const char *ssid = "ssid";
-const char *password = "pwd";
 
 //switches
 const int switchFan = 14;
 const int switchHeater = 12;
 
-AsyncWebServer server(80);
 InfluxDBClient client(influxdbUrl, influxdbDatabaseName);
 
 Adafruit_MCP9808 tempSensorMcp9808 = Adafruit_MCP9808();
 Adafruit_SHT31 tempSensorSht31 = Adafruit_SHT31();
 movingAvg twoSensorAvgTemp(20);
+UI ui(80);
 
 float mcpTemp = 0;
 float shtTemp = 0;
@@ -43,9 +39,9 @@ int fanStopIterationsCount = 0;
 void setup()
 {
   configTzTime("Europe/Warsaw", "pool.ntp.org", "time.nis.gov");
+  ui.begin();
 
   Serial.begin(115200);
-  LittleFS.begin();
 
   tempSensorMcp9808.begin(0x18);
   tempSensorMcp9808.setResolution(3);
@@ -53,7 +49,6 @@ void setup()
 
   tempSensorSht31.begin(0x44);
 
-  // Connect to Wi-Fi
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED)
   {
@@ -64,13 +59,6 @@ void setup()
 
   Serial.println(ip);
 
-  // Route for root / web page
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send(LittleFS, "/index.html");
-  });
-
-  DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
-  server.begin();
   twoSensorAvgTemp.begin();
 
   pinMode(switchFan, OUTPUT);
