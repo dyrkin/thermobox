@@ -8,27 +8,21 @@
 #include <InfluxDbClient.h>
 #include "movingAvg.h"
 #include "ui.h"
+#include "temp.h"
 #include "wifi_secrets.h"
 
 //influx
 const char *influxdbUrl = "http://192.168.1.26:8086";
 const char *influxdbDatabaseName = "iot";
 
-
 //switches
 const int switchFan = 14;
 const int switchHeater = 12;
 
 InfluxDBClient client(influxdbUrl, influxdbDatabaseName);
-
-Adafruit_MCP9808 tempSensorMcp9808 = Adafruit_MCP9808();
-Adafruit_SHT31 tempSensorSht31 = Adafruit_SHT31();
-movingAvg twoSensorAvgTemp(20);
 UI ui(80);
+Temp temp(20);
 
-float mcpTemp = 0;
-float shtTemp = 0;
-float humidity = 0;
 String ip = "";
 float threshold = 50;
 float thresholdDelta = 0.5;
@@ -39,15 +33,8 @@ int fanStopIterationsCount = 0;
 void setup()
 {
   configTzTime("Europe/Warsaw", "pool.ntp.org", "time.nis.gov");
-  ui.begin();
 
   Serial.begin(115200);
-
-  tempSensorMcp9808.begin(0x18);
-  tempSensorMcp9808.setResolution(3);
-  tempSensorMcp9808.wake();
-
-  tempSensorSht31.begin(0x44);
 
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED)
@@ -59,40 +46,11 @@ void setup()
 
   Serial.println(ip);
 
-  twoSensorAvgTemp.begin();
+  ui.begin();
+  temp.begin();
 
   pinMode(switchFan, OUTPUT);
   pinMode(switchHeater, OUTPUT);
-}
-
-void readSensorData()
-{
-  float t = tempSensorMcp9808.readTempC();
-  if (!isnan(t))
-  {
-    mcpTemp = t;
-  }
-
-  t = tempSensorSht31.readTemperature();
-  if (!isnan(t))
-  {
-    shtTemp = t;
-  }
-  float h = tempSensorSht31.readHumidity();
-  if (!isnan(h))
-  {
-    humidity = h;
-  }
-
-  twoSensorAvgTemp.reading(mcpTemp);
-  twoSensorAvgTemp.reading(shtTemp);
-
-  Serial.print("mcp: ");
-  Serial.println(mcpTemp);
-  Serial.print("sht: ");
-  Serial.println(shtTemp);
-  Serial.print("avg: ");
-  Serial.println(twoSensorAvgTemp.getAvg());
 }
 
 void sendMeasurementsToInflux()
@@ -100,10 +58,10 @@ void sendMeasurementsToInflux()
   Point pointDevice("thermobox");
   pointDevice.addTag("kind", "sensor");
   pointDevice.addTag("ip", ip);
-  pointDevice.addField("mcp_temp", mcpTemp);
-  pointDevice.addField("sht_temp", shtTemp);
-  pointDevice.addField("two_sensor_avg_temp", twoSensorAvgTemp.getAvg());
-  pointDevice.addField("humidity", humidity);
+  pointDevice.addField("mcp_temp", temp.getMcpTemp());
+  pointDevice.addField("sht_temp", temp.getShtTemp());
+  pointDevice.addField("two_sensor_avg_temp", temp.getAvgTemp());
+  pointDevice.addField("sht_humidity", temp.getShtHumidity());
   pointDevice.addField("heating", heating);
 
   client.writePoint(pointDevice);
@@ -111,14 +69,14 @@ void sendMeasurementsToInflux()
 
 void onOffHeater()
 {
-  if (twoSensorAvgTemp.getAvg() < threshold - thresholdDelta)
+  if (temp.getAvgTemp() < threshold - thresholdDelta)
   {
     heating = true;
     fanStopIterationsCount = 0;
     digitalWrite(switchFan, LOW);
     digitalWrite(switchHeater, LOW);
   }
-  else if (twoSensorAvgTemp.getAvg() >= threshold)
+  else if (temp.getAvgTemp() >= threshold)
   {
     heating = false;
     if (fanStopIterationsCount >= fanStopDelay)
@@ -136,7 +94,7 @@ void onOffHeater()
 
 void loop()
 {
-  readSensorData();
+  temp.update();
   sendMeasurementsToInflux();
   onOffHeater();
   delay(1000);
