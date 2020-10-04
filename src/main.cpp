@@ -10,6 +10,8 @@
 #include "temp.h"
 #include "secrets.h"
 #include "wifiNetwork.h"
+#include <LittleFS.h>
+#include "settings.h"
 
 //influx
 const char *influxdbUrl = "http://192.168.1.26:8086";
@@ -19,8 +21,10 @@ const char *influxdbDatabaseName = "iot";
 const int switchFan = 14;
 const int switchHeater = 12;
 
+Settings *settings = new Settings();
+
 InfluxDBClient client(influxdbUrl, influxdbDatabaseName);
-UI ui(80);
+UI ui(80, settings);
 Temp temp(20);
 WiFiNetwork wifi(ssid, password);
 
@@ -33,14 +37,14 @@ int fanStopIterationsCount = 0;
 
 void setup()
 {
+  LittleFS.begin();
+  settings->read();
   configTzTime("CET-1CEST", "pool.ntp.org", "time.nis.gov");
-
   Serial.begin(115200);
 
   wifi.begin();
   ui.begin();
   temp.begin();
-
 
   pinMode(switchFan, OUTPUT);
   pinMode(switchHeater, OUTPUT);
