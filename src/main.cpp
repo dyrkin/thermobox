@@ -1,5 +1,4 @@
 #include <Arduino.h>
-#include <ESP8266WiFi.h>
 #include <Hash.h>
 #include <Wire.h>
 #include "Adafruit_MCP9808.h"
@@ -9,7 +8,8 @@
 #include "movingAvg.h"
 #include "ui.h"
 #include "temp.h"
-#include "wifi_secrets.h"
+#include "secrets.h"
+#include "wifiNetwork.h"
 
 //influx
 const char *influxdbUrl = "http://192.168.1.26:8086";
@@ -22,6 +22,7 @@ const int switchHeater = 12;
 InfluxDBClient client(influxdbUrl, influxdbDatabaseName);
 UI ui(80);
 Temp temp(20);
+WiFiNetwork wifi(ssid, password);
 
 String ip = "";
 float threshold = 50;
@@ -32,25 +33,19 @@ int fanStopIterationsCount = 0;
 
 void setup()
 {
-  configTzTime("Europe/Warsaw", "pool.ntp.org", "time.nis.gov");
+  configTzTime("CET-1CEST", "pool.ntp.org", "time.nis.gov");
 
   Serial.begin(115200);
 
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED)
-  {
-    delay(1000);
-    Serial.println("Connecting to WiFi..");
-  }
-  ip = WiFi.localIP().toString();
-
-  Serial.println(ip);
-
+  wifi.begin();
   ui.begin();
   temp.begin();
 
+
   pinMode(switchFan, OUTPUT);
   pinMode(switchHeater, OUTPUT);
+
+  Serial.println(wifi.ip());
 }
 
 void sendMeasurementsToInflux()
