@@ -4,7 +4,6 @@
 class Settings
 {
 public:
-    Settings();
     bool read();
     bool write();
     const char *ssid();

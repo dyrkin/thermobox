@@ -20,11 +20,11 @@ const char *influxdbDatabaseName = "iot";
 
 Settings settings;
 
-InfluxDBClient client(influxdbUrl, influxdbDatabaseName);
-UI ui(80, &settings);
-Temp temp(20);
-Heater heater(&settings, &temp);
-WiFiNetwork wifi(ssid, password);
+InfluxDBClient client{influxdbUrl, influxdbDatabaseName};
+UI ui{80, &settings};
+Temp temp{20};
+Heater heater{&settings, &temp};
+WiFiNetwork wifi{ssid, password};
 
 String ip = "";
 float threshold = 50;

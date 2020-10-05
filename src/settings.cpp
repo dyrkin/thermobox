@@ -9,8 +9,6 @@
 #define TEMPERATURE_THRESHOLD "temperature_threshold"
 #define HEATER_ENABLED "heater_enabled"
 
-Settings::Settings() {}
-
 bool Settings::read()
 {
     File configFile = LittleFS.open("/settings.json", "r");
