@@ -1,3 +1,6 @@
+#ifndef TEMP_H
+#define TEMP_H
+
 #include "Adafruit_MCP9808.h"
 #include "Adafruit_SHT31.h"
 #include "movingAvg.h"
@@ -21,3 +24,5 @@ private:
     Adafruit_SHT31 _tempSensorSht;
     movingAvg _twoSensorAvgTemp;
 };
+
+#endif

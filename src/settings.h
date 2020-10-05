@@ -17,6 +17,8 @@ public:
     void setInfluxdbDatabaseName(const char *influxdbDatabaseName);
     float temperatureThreshold();
     void setTemperatureThreshold(float temperatureThreshold);
+    bool heaterEnabled();
+    void setHeaterEnabled(bool heaterEnabled);
 
 private:
     const char *_ssid;
@@ -24,6 +26,7 @@ private:
     const char *_influxdbUrl;
     const char *_influxdbDatabaseName;
     float _temperatureThreshold;
+    bool _heaterEnabled;
 };
 
 #endif

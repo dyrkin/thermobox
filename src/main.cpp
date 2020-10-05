@@ -12,20 +12,18 @@
 #include "wifiNetwork.h"
 #include <LittleFS.h>
 #include "settings.h"
+#include "heater.h"
 
 //influx
 const char *influxdbUrl = "http://192.168.1.26:8086";
 const char *influxdbDatabaseName = "iot";
 
-//switches
-const int switchFan = 14;
-const int switchHeater = 12;
-
-Settings *settings = new Settings();
+Settings settings;
 
 InfluxDBClient client(influxdbUrl, influxdbDatabaseName);
-UI ui(80, settings);
+UI ui(80, &settings);
 Temp temp(20);
+Heater heater(&settings, &temp);
 WiFiNetwork wifi(ssid, password);
 
 String ip = "";
@@ -38,7 +36,7 @@ int fanStopIterationsCount = 0;
 void setup()
 {
   LittleFS.begin();
-  settings->read();
+  settings.read();
   configTzTime("CET-1CEST", "pool.ntp.org", "time.nis.gov");
   Serial.begin(115200);
 
@@ -46,9 +44,7 @@ void setup()
   ui.begin();
   temp.begin();
 
-  pinMode(switchFan, OUTPUT);
-  pinMode(switchHeater, OUTPUT);
-
+  heater.begin();
   Serial.println(wifi.ip());
 }
 
@@ -66,35 +62,10 @@ void sendMeasurementsToInflux()
   client.writePoint(pointDevice);
 }
 
-void onOffHeater()
-{
-  if (temp.getAvgTemp() < threshold - thresholdDelta)
-  {
-    heating = true;
-    fanStopIterationsCount = 0;
-    digitalWrite(switchFan, LOW);
-    digitalWrite(switchHeater, LOW);
-  }
-  else if (temp.getAvgTemp() >= threshold)
-  {
-    heating = false;
-    if (fanStopIterationsCount >= fanStopDelay)
-    {
-      digitalWrite(switchFan, HIGH);
-    }
-    digitalWrite(switchHeater, HIGH);
-    fanStopIterationsCount++;
-  }
-  else if (!heating)
-  {
-    fanStopIterationsCount++;
-  }
-}
-
 void loop()
 {
   temp.update();
   sendMeasurementsToInflux();
-  onOffHeater();
+  heater.update();
   delay(1000);
 }

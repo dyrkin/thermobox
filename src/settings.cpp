@@ -6,6 +6,8 @@
 #define WIFI_PASSWORD_KEY "wifi_password"
 #define INFLUXDB_URL_KEY "inlfuxdb_url"
 #define INFLUXDB_DATABASE_NAME_KEY "influxdb_db_name"
+#define TEMPERATURE_THRESHOLD "temperature_threshold"
+#define HEATER_ENABLED "heater_enabled"
 
 Settings::Settings() {}
 
@@ -39,6 +41,8 @@ bool Settings::read()
     _password = doc[WIFI_PASSWORD_KEY];
     _influxdbUrl = doc[INFLUXDB_URL_KEY];
     _influxdbDatabaseName = doc[INFLUXDB_DATABASE_NAME_KEY];
+    _temperatureThreshold = doc[TEMPERATURE_THRESHOLD];
+    _heaterEnabled = doc[HEATER_ENABLED];
 
     return true;
 }
@@ -50,6 +54,8 @@ bool Settings::write()
     doc[WIFI_PASSWORD_KEY] = _password;
     doc[INFLUXDB_URL_KEY] = _influxdbUrl;
     doc[INFLUXDB_DATABASE_NAME_KEY] = _influxdbDatabaseName;
+    doc[TEMPERATURE_THRESHOLD] = _temperatureThreshold;
+    doc[HEATER_ENABLED] = _heaterEnabled;
 
     File configFile = LittleFS.open("/settings.json", "w");
     if (!configFile)
@@ -110,4 +116,14 @@ float Settings::temperatureThreshold()
 void Settings::setTemperatureThreshold(float temperatureThreshold)
 {
     _temperatureThreshold = temperatureThreshold;
+}
+
+bool Settings::heaterEnabled()
+{
+    return _heaterEnabled;
+}
+
+void Settings::setHeaterEnabled(bool heaterEnabled)
+{
+    _heaterEnabled = heaterEnabled;
 }
