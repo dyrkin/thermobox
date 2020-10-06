@@ -1,5 +1,6 @@
 #include <LittleFS.h>
 #include "ui.h"
+#include <SPI.h>
 #include <ESPAsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include "AsyncJson.h"

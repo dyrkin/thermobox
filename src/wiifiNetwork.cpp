@@ -1,15 +1,14 @@
 #include "wifiNetwork.h"
 #include <ESP8266WiFi.h>
 
-WiFiNetwork::WiFiNetwork(const char *ssid, const char *password)
+WiFiNetwork::WiFiNetwork(Settings *settings)
 {
-  _ssid = ssid;
-  _password = password;
+  _settings = settings;
 }
 
 void WiFiNetwork::begin()
 {
-  WiFi.begin(_ssid, _password);
+  WiFi.begin(_settings->ssid(), _settings->password());
   while (WiFi.status() != WL_CONNECTED)
   {
     delay(1000);

@@ -65,3 +65,7 @@ void Heater::delayedFanOff()
     }
     _fanStopIterationsCount++;
 }
+
+bool Heater::heating() {
+return _heating;
+}

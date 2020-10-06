@@ -10,6 +10,7 @@ public:
     Heater(Settings *settings, Temp *temp);
     void begin();
     void update();
+    bool heating();
 
 private:
     bool _heating = false;
