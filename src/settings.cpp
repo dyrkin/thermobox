@@ -35,10 +35,11 @@ bool Settings::read()
         return false;
     }
 
-    _ssid = doc[WIFI_SSID_KEY];
-    _password = doc[WIFI_PASSWORD_KEY];
-    _influxdbUrl = doc[INFLUXDB_URL_KEY];
-    _influxdbDatabaseName = doc[INFLUXDB_DATABASE_NAME_KEY];
+    _ssid = strdup(doc[WIFI_SSID_KEY]);
+    _password = strdup(doc[WIFI_PASSWORD_KEY]);
+    _influxdbUrl = strdup(doc[INFLUXDB_URL_KEY]);
+    _influxdbDatabaseName = strdup(doc[INFLUXDB_DATABASE_NAME_KEY]);
+
     _temperatureThreshold = doc[TEMPERATURE_THRESHOLD];
     _heaterEnabled = doc[HEATER_ENABLED];
 
@@ -73,7 +74,7 @@ const char *Settings::ssid()
 
 void Settings::setSsid(const char *ssid)
 {
-    _ssid = ssid;
+    _ssid = strdup(ssid);
 }
 
 const char *Settings::password()
@@ -83,7 +84,7 @@ const char *Settings::password()
 
 void Settings::setPassword(const char *password)
 {
-    _password = password;
+    _password = strdup(password);
 }
 
 const char *Settings::influxdbUrl()
@@ -93,7 +94,7 @@ const char *Settings::influxdbUrl()
 
 void Settings::setInfluxdbUrl(const char *influxdbUrl)
 {
-    _influxdbUrl = influxdbUrl;
+    _influxdbUrl = strdup(influxdbUrl);
 }
 
 const char *Settings::influxdbDatabaseName()
@@ -103,7 +104,7 @@ const char *Settings::influxdbDatabaseName()
 
 void Settings::setInfluxdbDatabaseName(const char *influxdbDatabaseName)
 {
-    _influxdbDatabaseName = influxdbDatabaseName;
+    _influxdbDatabaseName = strdup(influxdbDatabaseName);
 }
 
 float Settings::temperatureThreshold()

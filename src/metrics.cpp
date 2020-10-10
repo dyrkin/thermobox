@@ -27,6 +27,7 @@ void Metrics::send()
         pointDevice.addField("two_sensor_avg_temp", _temp->getAvgTemp());
         pointDevice.addField("sht_humidity", _temp->getShtHumidity());
         pointDevice.addField("heating", _heater->heating());
+        pointDevice.addField("threshold", _settings->temperatureThreshold());
 
         _client->writePoint(pointDevice);
     }

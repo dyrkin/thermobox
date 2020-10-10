@@ -1,3 +1,6 @@
+#ifndef WIFI_NETWORK_H
+#define WIFI_NETWORK_H
+
 #include <Arduino.h>
 #include "settings.h"
 
@@ -10,4 +13,8 @@ public:
 
 private:
     Settings *_settings;
+    void connect(const char *ssid, const char *password);
+    bool softAP;
 };
+
+#endif

@@ -7,15 +7,16 @@
 #include "metrics.h"
 
 Settings settings;
-UI ui{80, &settings};
 Temp temp{20};
 Heater heater{&settings, &temp};
 WiFiNetwork wifi{&settings};
+UI ui{80, &settings, &temp, &heater, &wifi};
 Metrics metrics{&settings, &temp, &heater};
 
 void setup()
 {
   Serial.begin(115200);
+  delay(1000);
   LittleFS.begin();
   settings.read();
   configTzTime("CET-1CEST", "pool.ntp.org", "time.nis.gov");
